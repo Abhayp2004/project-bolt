@@ -67,31 +67,36 @@ namespace PDFCommenter.Services
                     throw new IOException($"Failed to save file to {fullPath}");
                 }
 
-                // Get page count for PDFs only
-                int? pageCount = null;
-                if (extension == ".pdf")
-                {
-                    pageCount = await GetPDFPageCountAsync(fullPath);
-                    _logger.LogInformation("PDF has {PageCount} pages", pageCount);
-                }
-
                 // Calculate file size in MB
                 float fileSizeMB = file.Length / (1024f * 1024f);
 
-                // Create document record
+                // Create document record based on file type
                 var document = new Document
                 {
-                    PDFName = fileName,
-                    PDFPath = filePath,
-                    PDFPages = pageCount,
                     UploadedBy = username ?? "anonymous",
                     FileSizeMB = fileSizeMB,
                     Status = "Pending"
                 };
 
-                // If this is an Excel file, also set the Excel properties
-                if (extension == ".xls" || extension == ".xlsx")
+                if (extension == ".pdf")
                 {
+                    // PDF file
+                    int? pageCount = await GetPDFPageCountAsync(fullPath);
+                    _logger.LogInformation("PDF has {PageCount} pages", pageCount);
+
+                    document.PDFName = fileName;
+                    document.PDFPath = filePath;
+                    document.PDFPages = pageCount;
+                    document.ExcelName = "";
+                    document.ExcelPath = "";
+                    document.ExcelSizeMB = 0;
+                }
+                else if (extension == ".xls" || extension == ".xlsx")
+                {
+                    // Excel file
+                    document.PDFName = "";
+                    document.PDFPath = "";
+                    document.PDFPages = null;
                     document.ExcelName = fileName;
                     document.ExcelPath = filePath;
                     document.ExcelSizeMB = fileSizeMB;

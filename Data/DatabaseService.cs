@@ -125,9 +125,9 @@ namespace PDFCommenter.Data
                                     PageCount INT NULL,
                                     UploadedBy NVARCHAR(100) NOT NULL,
                                     Status NVARCHAR(20) NOT NULL DEFAULT 'Pending',
-                                    ExcelName NVARCHAR(255) NOT NULL,
-                                    ExcelPath NVARCHAR(500) NOT NULL,
-                                    ExcelSizeMB FLOAT NOT NULL
+                                    ExcelName NVARCHAR(255) NOT NULL DEFAULT '',
+                                    ExcelPath NVARCHAR(500) NOT NULL DEFAULT '',
+                                    ExcelSizeMB FLOAT NOT NULL DEFAULT 0
                                 )";
                             command.ExecuteNonQuery();
                         }
@@ -151,9 +151,9 @@ namespace PDFCommenter.Data
                                                 ISNULL(PageCount, NULL), 
                                                 UploadedBy, 
                                                 ISNULL(Status, 'Pending'),
-                                                 ExcelName,
-                                                 ExcelPath,
-                                                ExcelSizeMB
+                                                ISNULL(ExcelName, ''),
+                                                ISNULL(ExcelPath, ''),
+                                                ISNULL(ExcelSizeMB, 0)
                                             FROM documents1_backup;
                                         END";
                                     command.ExecuteNonQuery();
@@ -206,22 +206,23 @@ namespace PDFCommenter.Data
                 VALUES (@FileName, @FilePath, @FileType, @FileSizeMB, @PageCount, @UploadedBy, @Status, @ExcelName, @ExcelPath, @ExcelSizeMB);
                 SELECT SCOPE_IDENTITY();";
 
-            command.Parameters.AddWithValue("@FileName", document.PDFName);
-            command.Parameters.AddWithValue("@FilePath", document.PDFPath);
+            // Use PDFName for FileName and PDFPath for FilePath (these are the main file fields)
+            command.Parameters.AddWithValue("@FileName", document.PDFName ?? document.ExcelName ?? "");
+            command.Parameters.AddWithValue("@FilePath", document.PDFPath ?? document.ExcelPath ?? "");
             
             // Determine file type based on whether Excel properties are set
             string fileType = !string.IsNullOrEmpty(document.ExcelName) ? 
                 Path.GetExtension(document.ExcelName).TrimStart('.') : 
-                Path.GetExtension(document.PDFName).TrimStart('.');
+                Path.GetExtension(document.PDFName ?? "").TrimStart('.');
             command.Parameters.AddWithValue("@FileType", fileType);
             
             command.Parameters.AddWithValue("@FileSizeMB", document.FileSizeMB);
             command.Parameters.AddWithValue("@PageCount", (object)document.PDFPages ?? DBNull.Value);
             command.Parameters.AddWithValue("@UploadedBy", document.UploadedBy);
             command.Parameters.AddWithValue("@Status", document.Status);
-            command.Parameters.AddWithValue("@ExcelName", document.ExcelName);
-            command.Parameters.AddWithValue("@ExcelPath", document.ExcelPath);
-            command.Parameters.AddWithValue("@ExcelSizeMB", document.ExcelSizeMB);
+            command.Parameters.AddWithValue("@ExcelName", document.ExcelName ?? "");
+            command.Parameters.AddWithValue("@ExcelPath", document.ExcelPath ?? "");
+            command.Parameters.AddWithValue("@ExcelSizeMB", document.ExcelSizeMB ?? 0);
 
             var result = await command.ExecuteScalarAsync();
             return Convert.ToInt32(result);
@@ -283,9 +284,9 @@ namespace PDFCommenter.Data
                         UploadedBy = reader.GetString("UploadedBy"),
                         FileSizeMB = reader.IsDBNull("FileSizeMB") ? 0 : (float)reader.GetDouble("FileSizeMB"),
                         Status = reader.GetString("Status"),
-                        ExcelName =  reader.GetString("ExcelName"),
-                        ExcelPath =  reader.GetString("ExcelPath"),
-                        ExcelSizeMB = reader.String("ExcelSizeMB")
+                        ExcelName = reader.GetString("ExcelName"),
+                        ExcelPath = reader.GetString("ExcelPath"),
+                        ExcelSizeMB = reader.IsDBNull("ExcelSizeMB") ? 0 : (float)reader.GetDouble("ExcelSizeMB")
                     });
                 }
 
@@ -344,8 +345,8 @@ namespace PDFCommenter.Data
                         FileSizeMB = reader.IsDBNull("FileSizeMB") ? 0 : (float)reader.GetDouble("FileSizeMB"),
                         Status = reader.GetString("Status"),
                         ExcelName = reader.GetString("ExcelName"),
-                        ExcelPath =  reader.GetString("ExcelPath"),
-                        ExcelSizeMB = reader.GetString("ExcelSizeMB")
+                        ExcelPath = reader.GetString("ExcelPath"),
+                        ExcelSizeMB = reader.IsDBNull("ExcelSizeMB") ? 0 : (float)reader.GetDouble("ExcelSizeMB")
                     };
                 }
 
@@ -482,9 +483,9 @@ namespace PDFCommenter.Data
                     UploadedBy = reader.GetString("UploadedBy"),
                     FileSizeMB = reader.IsDBNull("FileSizeMB") ? 0 : (float)reader.GetDouble("FileSizeMB"),
                     Status = reader.GetString("Status"),
-                    ExcelName =  reader.GetString("ExcelName"),
-                    ExcelPath =  reader.GetString("ExcelPath"),
-                    ExcelSizeMB = reader.GetString("ExcelSizeMB")
+                    ExcelName = reader.GetString("ExcelName"),
+                    ExcelPath = reader.GetString("ExcelPath"),
+                    ExcelSizeMB = reader.IsDBNull("ExcelSizeMB") ? 0 : (float)reader.GetDouble("ExcelSizeMB")
                 });
             }
 

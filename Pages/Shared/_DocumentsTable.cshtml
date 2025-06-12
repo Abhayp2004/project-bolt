@@ -36,13 +36,17 @@
                         }
                     </td>
                     <td>
-                        @if (!string.IsNullOrEmpty(doc.PDFName))
+                        @if (!string.IsNullOrEmpty(doc.PDFName) && string.IsNullOrEmpty(doc.ExcelName))
                         {
                             <span class="badge bg-danger">PDF</span>
                         }
-                        else if (!string.IsNullOrEmpty(doc.ExcelName))
+                        else if (!string.IsNullOrEmpty(doc.ExcelName) && string.IsNullOrEmpty(doc.PDFName))
                         {
                             <span class="badge bg-success">Excel</span>
+                        }
+                        else if (!string.IsNullOrEmpty(doc.PDFName) && !string.IsNullOrEmpty(doc.ExcelName))
+                        {
+                            <span class="badge bg-info">PDF + Excel</span>
                         }
                         else
                         {
@@ -71,7 +75,7 @@
                         }
                     </td>
                     <td>
-                        @if (doc.ExcelSizeMB.HasValue)
+                        @if (doc.ExcelSizeMB.HasValue && doc.ExcelSizeMB > 0)
                         {
                             @doc.ExcelSizeMB.Value.ToString("F2")
                         }
@@ -104,4 +108,4 @@
             </tr>
         }
     </tbody>
-</table> 
+</table>
