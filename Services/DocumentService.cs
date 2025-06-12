@@ -87,19 +87,25 @@ namespace PDFCommenter.Services
                     document.PDFName = fileName;
                     document.PDFPath = filePath;
                     document.PDFPages = pageCount;
-                    document.ExcelName = "";
-                    document.ExcelPath = "";
-                    document.ExcelSizeMB = 0;
+                    document.ExcelName = null;
+                    document.ExcelPath = null;
+                    document.ExcelSizeMB = null;
+                    
+                    _logger.LogInformation("Created PDF document: Name={PDFName}, Path={PDFPath}, Pages={PDFPages}", 
+                        document.PDFName, document.PDFPath, document.PDFPages);
                 }
                 else if (extension == ".xls" || extension == ".xlsx")
                 {
-                    // Excel file
-                    document.PDFName = "";
-                    document.PDFPath = "";
+                    // Excel file - store in both main fields and Excel-specific fields
+                    document.PDFName = fileName; // Store Excel file name in PDFName for main file display
+                    document.PDFPath = filePath; // Store Excel file path in PDFPath for main file display
                     document.PDFPages = null;
                     document.ExcelName = fileName;
                     document.ExcelPath = filePath;
                     document.ExcelSizeMB = fileSizeMB;
+                    
+                    _logger.LogInformation("Created Excel document: Name={ExcelName}, Path={ExcelPath}, Size={ExcelSizeMB}MB", 
+                        document.ExcelName, document.ExcelPath, document.ExcelSizeMB);
                 }
 
                 _logger.LogInformation("Creating database record for document");

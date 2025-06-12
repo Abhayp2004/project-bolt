@@ -26,31 +26,23 @@
                         {
                             @doc.PDFName
                         }
-                        else if (!string.IsNullOrEmpty(doc.ExcelName))
-                        {
-                            @doc.ExcelName
-                        }
                         else
                         {
                             <span class="text-muted">N/A</span>
                         }
                     </td>
                     <td>
-                        @if (!string.IsNullOrEmpty(doc.PDFName) && string.IsNullOrEmpty(doc.ExcelName))
-                        {
-                            <span class="badge bg-danger">PDF</span>
-                        }
-                        else if (!string.IsNullOrEmpty(doc.ExcelName) && string.IsNullOrEmpty(doc.PDFName))
+                        @if (!string.IsNullOrEmpty(doc.ExcelName))
                         {
                             <span class="badge bg-success">Excel</span>
                         }
-                        else if (!string.IsNullOrEmpty(doc.PDFName) && !string.IsNullOrEmpty(doc.ExcelName))
+                        else if (!string.IsNullOrEmpty(doc.PDFName) && doc.PDFPages.HasValue)
                         {
-                            <span class="badge bg-info">PDF + Excel</span>
+                            <span class="badge bg-danger">PDF</span>
                         }
                         else
                         {
-                            <span class="text-muted">N/A</span>
+                            <span class="text-muted">Unknown</span>
                         }
                     </td>
                     <td>
