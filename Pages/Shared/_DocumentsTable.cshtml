@@ -1,0 +1,107 @@
+@model IEnumerable<PDFCommenter.Models.Document>
+
+<table class="table table-striped" id="documentsTable">
+    <thead>
+        <tr>
+            <th>File Name</th>
+            <th>File Type</th>
+            <th>Pages/Sheets</th>
+            <th>File Size (MB)</th>
+            <th>Excel Name</th>
+            <th>Excel Size (MB)</th>
+            <th>Uploaded By</th>
+            <th>Status</th>
+            <th>Comments</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var doc in Model)
+            {
+                <tr>
+                    <td>
+                        @if (!string.IsNullOrEmpty(doc.PDFName))
+                        {
+                            @doc.PDFName
+                        }
+                        else if (!string.IsNullOrEmpty(doc.ExcelName))
+                        {
+                            @doc.ExcelName
+                        }
+                        else
+                        {
+                            <span class="text-muted">N/A</span>
+                        }
+                    </td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(doc.PDFName))
+                        {
+                            <span class="badge bg-danger">PDF</span>
+                        }
+                        else if (!string.IsNullOrEmpty(doc.ExcelName))
+                        {
+                            <span class="badge bg-success">Excel</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">N/A</span>
+                        }
+                    </td>
+                    <td>
+                        @if (doc.PDFPages.HasValue)
+                        {
+                            @doc.PDFPages
+                        }
+                        else
+                        {
+                            <span class="text-muted">N/A</span>
+                        }
+                    </td>
+                    <td>@doc.FileSizeMB.ToString("F2")</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(doc.ExcelName))
+                        {
+                            @doc.ExcelName
+                        }
+                        else
+                        {
+                            <span class="text-muted">N/A</span>
+                        }
+                    </td>
+                    <td>
+                        @if (doc.ExcelSizeMB.HasValue)
+                        {
+                            @doc.ExcelSizeMB.Value.ToString("F2")
+                        }
+                        else
+                        {
+                            <span class="text-muted">N/A</span>
+                        }
+                    </td>
+                    <td>@doc.UploadedBy</td>
+                    <td>
+                        <span class="badge @(doc.Status == "Completed" ? "bg-success" : doc.Status == "Processing" ? "bg-warning" : "bg-secondary")">
+                            @doc.Status
+                        </span>
+                    </td>
+                    <td>@await Html.PartialAsync("_CommentCount", doc.Id)</td>
+                    <td>
+                        <a href="/Documents/View/@doc.Id" class="btn btn-sm btn-info">View & Comment</a>
+                        @if (!string.IsNullOrEmpty(doc.ExcelName))
+                        {
+                            <button class="btn btn-sm btn-success" onclick="viewExcelData(@doc.Id)">View Excel</button>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="10" class="text-center">No documents available</td>
+            </tr>
+        }
+    </tbody>
+</table> 

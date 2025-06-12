@@ -1,0 +1,828 @@
+@page "{id:int}"
+@model PDFCommenter.Pages.Documents.ViewModel
+@{
+    ViewData["Title"] = "View Document";
+}
+
+<style>
+    .pdf-container {
+        position: relative;
+        margin-bottom: 1rem;
+        min-height: 600px;
+        background: #f8f9fa;
+        overflow: hidden; /* Ensure markers stay within container */
+    }
+
+    .pdf-viewer {
+        width: 100%;
+        height: 600px;
+        border: 1px solid #ddd;
+    }
+
+    .pdf-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    .page-navigation {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-navigation input {
+        width: 60px;
+        text-align: center;
+    }
+
+    .page-navigation span {
+        color: #666;
+    }
+
+    .comment-form {
+        display: none;
+        position: fixed;
+        background: white;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        z-index: 1000;
+        width: 300px;
+    }
+
+    .comment-form.active {
+        display: block;
+    }
+
+    .comment-form textarea {
+        margin-bottom: 0.5rem;
+    }
+
+    .comment-form .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .comment-list {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .comment-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .comment-item:last-child {
+        border-bottom: none;
+    }
+
+    .comment-metadata {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 0.5rem;
+    }
+
+    .add-comment-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+        background-color: #0d47a1;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .add-comment-btn:hover {
+        background-color: #1565c0;
+    }
+
+    .add-comment-btn.active {
+        background-color: #d32f2f;
+    }
+
+    .add-comment-btn.active:hover {
+        background-color: #c62828;
+    }
+
+    #pdfOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 500;
+        background: transparent;
+        pointer-events: none;
+    }
+
+    #pdfOverlay.comment-mode {
+        pointer-events: auto;
+        cursor: crosshair;
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .comment-marker {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background: #ffc107;
+        border-radius: 50%;
+        cursor: pointer;
+        transform: translate(-50%, -50%);
+        z-index: 90;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: all 0.2s ease;
+        pointer-events: auto;
+    }
+
+    .comment-marker:hover {
+        background: #ffb300;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    #commentMarkers {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 80;
+    }
+
+    #commentMarkers .comment-marker {
+        pointer-events: auto;
+    }
+
+    .comment-marker.active {
+        background: #ff9800;
+        transform: translate(-50%, -50%) scale(1.2);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .comment-item.active {
+        background-color: #fff3e0;
+        border-left: 4px solid #ff9800;
+    }
+</style>
+
+<div class="container">
+    <div class="header-section mb-4">
+        <h1 class="text-center text-white py-3">Document Viewer</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h3 class="card-title">@Model.Document.PDFName</h3>
+                    <div class="pdf-controls">
+                        <div class="page-navigation">
+                            <button type="button" class="btn btn-outline-secondary" id="prevPageBtn">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <input type="number" id="currentPage" min="1" value="1" />
+                            <span>of</span>
+                            <span id="totalPages">1</span>
+                            <button type="button" class="btn btn-outline-secondary" id="nextPageBtn">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="input-group" style="width: auto;">
+                            <span class="input-group-text">Zoom</span>
+                            <select id="zoomControl" class="form-select">
+                                <option value="0.5">50%</option>
+                                <option value="0.75">75%</option>
+                                <option value="1.0" selected>100%</option>
+                                <option value="1.25">125%</option>
+                                <option value="1.5">150%</option>
+                                <option value="2.0">200%</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="pdf-container" id="pdfContainer">
+                        <button type="button" id="addCommentBtn" class="add-comment-btn" onclick="
+                            const btn = this;
+                            const overlay = document.getElementById('pdfOverlay');
+                            const isActive = btn.classList.contains('active');
+                            
+                            if (!isActive) {
+                                btn.classList.add('active');
+                                btn.innerHTML = '<i class=\'fas fa-times\'></i> Cancel';
+                                overlay.classList.add('comment-mode');
+                                overlay.style.pointerEvents = 'auto';
+                                overlay.style.cursor = 'crosshair';
+                            } else {
+                                btn.classList.remove('active');
+                                btn.innerHTML = '<i class=\'fas fa-comment\'></i> Add Comment';
+                                overlay.classList.remove('comment-mode');
+                                document.getElementById('commentForm').classList.remove('active');
+                            }">
+                            <i class="fas fa-comment"></i> Add Comment
+                        </button>
+                        
+                        <div id="commentMarkers"></div>
+
+                        @if (Model.Document.PDFPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="ratio ratio-16x9">
+                                <object id="pdfViewer" data="/@Model.Document.PDFPath" type="application/pdf" class="pdf-viewer">
+                                    <p>Your browser does not support PDF viewing. 
+                                    <a href="/@Model.Document.PDFPath" target="_blank">Click here to download the PDF</a></p>
+                                </object>
+                            </div>
+                            <div id="pdfOverlay" onclick="
+                                if (!document.getElementById('addCommentBtn').classList.contains('active')) return;
+                                
+                                const rect = this.getBoundingClientRect();
+                                const x = event.clientX - rect.left;
+                                const y = event.clientY - rect.top;
+                                
+                                // Get the PDF viewer's position
+                                const pdfViewer = document.getElementById('pdfViewer');
+                                const pdfRect = pdfViewer.getBoundingClientRect();
+                                
+                                // Calculate position relative to the PDF viewer
+                                const pdfX = event.clientX - pdfRect.left;
+                                const pdfY = event.clientY - pdfRect.top;
+                                
+                                // Calculate percentages relative to PDF viewer
+                                const xPercent = (pdfX / pdfRect.width) * 100;
+                                const yPercent = (pdfY / pdfRect.height) * 100;
+                                
+                                const form = document.getElementById('commentForm');
+                                form.style.left = event.clientX + 'px';
+                                form.style.top = event.clientY + 'px';
+                                form.classList.add('active');
+                                
+                                document.getElementById('commentPageNumber').value = document.getElementById('currentPage').value;
+                                document.getElementById('commentX').value = xPercent;
+                                document.getElementById('commentY').value = yPercent;
+                                
+                                const input = form.querySelector('input[type="text"]');
+                                if (input) input.focus();">
+                            </div>
+                            
+                            <!-- Debug Information -->
+                            <div class="alert alert-info mt-3">
+                                <strong>Debug Info:</strong><br/>
+                                PDF Path: @Model.Document.PDFPath<br/>
+                                Full URL: /@Model.Document.PDFPath<br/>
+                                File Name: @Model.Document.PDFName<br/>
+                                File Size: @Model.Document.FileSizeMB MB<br/>
+                                <a href="/@Model.Document.PDFPath" target="_blank" class="btn btn-sm btn-primary mt-2">
+                                    <i class="fas fa-download"></i> Open PDF in New Tab
+                                </a>
+                            </div>
+                        }
+                        else if (Model.Document.PDFPath.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || 
+                                Model.Document.PDFPath.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) || 
+                                Model.Document.PDFPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <img src="/@Model.Document.PDFPath" class="img-fluid" alt="Document Image" id="documentImage" />
+                        }
+
+                        <div id="commentForm" class="comment-form">
+                            <form method="post" asp-page-handler="Comment">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" asp-for="FileId" value="@Model.Document.Id" />
+                                <input type="hidden" asp-for="PageNumber" id="commentPageNumber" value="1" />
+                                <input type="hidden" id="commentX" name="XPosition" value="0" />
+                                <input type="hidden" id="commentY" name="YPosition" value="0" />
+                                <div class="form-group">
+                                    <input type="text" id="commentText" name="CommentText" class="form-control" 
+                                        placeholder="Add your comment..." 
+                                        required 
+                                        minlength="1" />
+                                </div>
+                                <div class="btn-group mt-2">
+                                    <button type="button" class="btn btn-primary" onclick="
+                                        // Get all required elements first
+                                        const form = this.closest('form');
+                                        const commentTextEl = document.getElementById('commentText');
+                                        const commentXEl = document.getElementById('commentX');
+                                        const commentYEl = document.getElementById('commentY');
+                                        const commentPageNumberEl = document.getElementById('commentPageNumber');
+                                        const markersContainer = document.getElementById('commentMarkers');
+                                        const addCommentBtn = document.getElementById('addCommentBtn');
+                                        const pdfOverlay = document.getElementById('pdfOverlay');
+                                        const commentList = document.querySelector('.comment-list');
+                                        const pdfViewer = document.getElementById('pdfViewer');
+                                        
+                                        // Get values after validation
+                                        const commentText = commentTextEl.value.trim();
+                                        const x = parseFloat(commentXEl.value);
+                                        const y = parseFloat(commentYEl.value);
+                                        const pageNumber = parseInt(commentPageNumberEl.value);
+                                        
+                                        // Validate values
+                                        if (!commentText) {
+                                            alert('Please enter a comment');
+                                            return;
+                                        }
+                                        
+                                        if (!x || !y || !pageNumber) {
+                                            alert('Error: Comment position is missing. Please try clicking on the PDF again.');
+                                            return;
+                                        }
+                                        
+                                        // Disable button and show loading
+                                        this.disabled = true;
+                                        this.innerHTML = '<i class=\'fas fa-spinner fa-spin\'></i> Saving...';
+                                        
+                                        try {
+                                            // Get the PDF viewer's actual dimensions and position
+                                            const pdfRect = pdfViewer.getBoundingClientRect();
+                                            const containerRect = pdfViewer.parentElement.getBoundingClientRect();
+                                            
+                                            // Calculate the actual position relative to the PDF viewer
+                                            const pdfX = (x * containerRect.width / 100) - containerRect.left;
+                                            const pdfY = (y * containerRect.height / 100) - containerRect.top;
+                                            
+                                            // Create comment marker
+                                            const marker = document.createElement('div');
+                                            marker.className = 'comment-marker';
+                                            marker.dataset.x = x;
+                                            marker.dataset.y = y;
+                                            marker.dataset.page = pageNumber;
+                                            marker.style.left = pdfX + 'px';
+                                            marker.style.top = pdfY + 'px';
+                                            marker.innerHTML = '<i class=\'fas fa-comment\'></i>';
+                                            marker.title = commentText;
+                                            
+                                            // Create comment list item
+                                            const newComment = document.createElement('div');
+                                            newComment.className = 'comment-item';
+                                            newComment.setAttribute('data-page', pageNumber);
+                                            newComment.setAttribute('data-x', x);
+                                            newComment.setAttribute('data-y', y);
+                                            newComment.innerHTML = `
+                                                <p>${commentText}</p>
+                                                <div class='comment-metadata'>
+                                                    <span>By User</span><br/>
+                                                    <span>Page ${pageNumber}</span><br/>
+                                                    <span>${new Date().toLocaleString()}</span>
+                                                </div>
+                                            `;
+                                            
+                                            // Add click handler to marker
+                                            marker.onclick = function(e) {
+                                                e.stopPropagation();
+                                                // Highlight the comment in the list
+                                                const allComments = commentList.querySelectorAll('.comment-item');
+                                                allComments.forEach(c => c.classList.remove('active'));
+                                                newComment.classList.add('active');
+                                                newComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                            };
+                                            
+                                            // Add click handler to comment item
+                                            newComment.onclick = function(e) {
+                                                e.stopPropagation();
+                                                // Highlight the marker
+                                                const allMarkers = markersContainer.querySelectorAll('.comment-marker');
+                                                allMarkers.forEach(m => m.classList.remove('active'));
+                                                marker.classList.add('active');
+                                            };
+                                            
+                                            // Add elements to the page
+                                            markersContainer.appendChild(marker);
+                                            commentList.insertBefore(newComment, commentList.firstChild);
+                                            
+                                            // Clear and hide form
+                                            commentTextEl.value = '';
+                                            form.parentElement.classList.remove('active');
+                                            
+                                            // Exit comment mode
+                                            addCommentBtn.classList.remove('active');
+                                            addCommentBtn.innerHTML = '<i class=\'fas fa-comment\'></i> Add Comment';
+                                            pdfOverlay.classList.remove('comment-mode');
+                                            pdfOverlay.style.pointerEvents = 'none';
+                                            
+                                            // Show success message
+                                            console.log('Comment added successfully');
+                                        } catch (error) {
+                                            console.error('Error adding comment:', error);
+                                            alert('Error adding comment: ' + error.message);
+                                        } finally {
+                                            // Reset button
+                                            this.disabled = false;
+                                            this.innerHTML = 'Save Comment';
+                                        }">
+                                        Save Comment
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="
+                                        const form = this.closest('form');
+                                        document.getElementById('commentText').value = '';
+                                        form.parentElement.classList.remove('active');
+                                        document.getElementById('addCommentBtn').click();">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div class="alert alert-danger">@error.ErrorMessage</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h3 class="card-title">Comments</h3>
+                </div>
+                <div class="card-body">
+                    <div class="comment-list">
+                        @foreach (var comment in Model.Comments)
+                        {
+                            <div class="comment-item" data-page="@comment.PageNumber" data-x="@comment.XPosition" data-y="@comment.YPosition">
+                                <p>@comment.CommentText</p>
+                                <div class="comment-metadata">
+                                    <span>By @comment.CreatedBy</span>
+                                    <br />
+                                    <span>Page @comment.PageNumber</span>
+                                    <br />
+                                    <span>@comment.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script>
+        let isCommentMode = false;
+        let currentPage = 1;
+        let totalPages = 1;
+        let comments = @Html.Raw(Json.Serialize(Model.Comments));
+
+        // Initialize when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded - Initializing comment functionality');
+            
+            const addCommentBtn = document.getElementById('addCommentBtn');
+            const pdfOverlay = document.getElementById('pdfOverlay');
+            const commentForm = document.getElementById('commentForm');
+            const currentPageInput = document.getElementById('currentPage');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const zoomControl = document.getElementById('zoomControl');
+
+            // Initialize PDF viewer
+            const pdfViewer = document.getElementById('pdfViewer');
+            const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+            const activePdfViewer = pdfViewer || pdfViewerFallback;
+            
+            if (activePdfViewer) {
+                console.log('PDF viewer found, setting up event listeners');
+                console.log('PDF viewer type:', activePdfViewer.tagName);
+                console.log('PDF viewer src/data:', activePdfViewer.getAttribute('src') || activePdfViewer.getAttribute('data'));
+                
+                // Add load event listener
+                activePdfViewer.addEventListener('load', function() {
+                    console.log('PDF viewer loaded successfully');
+                });
+                
+                // Add error event listener
+                activePdfViewer.addEventListener('error', function(e) {
+                    console.error('PDF viewer error:', e);
+                });
+                
+                // Wait for PDF to load
+                activePdfViewer.addEventListener('load', function() {
+                    console.log('PDF viewer loaded');
+                    try {
+                        // Try to get the PDF document
+                        const pdfDoc = activePdfViewer.contentDocument || activePdfViewer.contentWindow.document;
+                        if (pdfDoc) {
+                            console.log('PDF document accessed');
+                            
+                            // Get total pages from the PDF
+                            const pageCount = pdfDoc.querySelectorAll('page').length;
+                            if (pageCount > 0) {
+                                totalPages = pageCount;
+                                console.log('Total pages:', totalPages);
+                                document.getElementById('totalPages').textContent = totalPages;
+                                currentPageInput.max = totalPages;
+                                updateNavigationButtons();
+                            }
+
+                            // Set up page change listener
+                            pdfDoc.addEventListener('pagechange', function(e) {
+                                console.log('Page changed:', e.detail.page);
+                                currentPage = e.detail.page;
+                                updateCurrentPage();
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error accessing PDF document:', error);
+                    }
+                });
+            } else {
+                console.error('PDF viewer element not found');
+            }
+
+            // Initialize comment button
+            if (addCommentBtn) {
+                console.log('Setting up comment button');
+                addCommentBtn.addEventListener('click', function(e) {
+                    console.log('Add comment button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    isCommentMode = !isCommentMode;
+                    console.log('Comment mode:', isCommentMode);
+                    
+                    if (isCommentMode) {
+                        addCommentBtn.classList.add('active');
+                        addCommentBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+                        pdfOverlay.classList.add('comment-mode');
+                        console.log('Comment mode activated');
+                    } else {
+                        addCommentBtn.classList.remove('active');
+                        addCommentBtn.innerHTML = '<i class="fas fa-comment"></i> Add Comment';
+                        pdfOverlay.classList.remove('comment-mode');
+                        hideCommentForm();
+                        console.log('Comment mode deactivated');
+                    }
+                });
+            }
+
+            // Initialize overlay click handling
+            if (pdfOverlay) {
+                console.log('Setting up overlay click handling');
+                pdfOverlay.addEventListener('click', function(e) {
+                    if (!isCommentMode) return;
+                    
+                    console.log('Overlay clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const rect = pdfOverlay.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    console.log('Click position:', x, y);
+                    showCommentForm(x, y, currentPage);
+                });
+            }
+
+            // Initialize page navigation
+            if (currentPageInput) {
+                currentPageInput.addEventListener('change', function(e) {
+                    const pageNumber = parseInt(e.target.value);
+                    console.log('Page number changed:', pageNumber);
+                    if (pageNumber >= 1 && pageNumber <= totalPages) {
+                        goToPage(pageNumber);
+                    } else {
+                        e.target.value = currentPage;
+                    }
+                });
+            }
+
+            if (prevPageBtn) {
+                prevPageBtn.addEventListener('click', function() {
+                    console.log('Previous page button clicked');
+                    previousPage();
+                });
+            }
+
+            if (nextPageBtn) {
+                nextPageBtn.addEventListener('click', function() {
+                    console.log('Next page button clicked');
+                    nextPage();
+                });
+            }
+
+            // Initialize zoom control
+            if (zoomControl) {
+                zoomControl.addEventListener('change', function(e) {
+                    console.log('Zoom changed:', e.target.value);
+                    try {
+                        const pdfViewer = document.getElementById('pdfViewer');
+                        const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+                        const activePdfViewer = pdfViewer || pdfViewerFallback;
+                        
+                        if (activePdfViewer) {
+                            const scale = parseFloat(e.target.value);
+                            activePdfViewer.style.transform = `scale(${scale})`;
+                            activePdfViewer.style.transformOrigin = 'top left';
+                        }
+                    } catch (error) {
+                        console.error('Error changing zoom:', error);
+                    }
+                });
+            }
+
+            // Prevent clicks on the PDF viewer from bubbling up when in comment mode
+            const pdfViewer = document.getElementById('pdfViewer');
+            const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+            const activePdfViewer = pdfViewer || pdfViewerFallback;
+            
+            if (activePdfViewer) {
+                activePdfViewer.addEventListener('click', function(e) {
+                    if (isCommentMode) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+            }
+
+            // Initial update of comment positions
+            updateCommentPositions();
+        });
+
+        function showCommentForm(x, y, pageNumber) {
+            console.log('Showing comment form at:', x, y, 'page:', pageNumber);
+            const form = document.getElementById('commentForm');
+            const pdfViewer = document.getElementById('pdfViewer');
+            const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+            const activePdfViewer = pdfViewer || pdfViewerFallback;
+            const pdfRect = activePdfViewer.getBoundingClientRect();
+            
+            // Calculate position relative to the PDF viewer
+            const pdfX = x - pdfRect.left;
+            const pdfY = y - pdfRect.top;
+            
+            // Calculate percentages relative to PDF viewer
+            const xPercent = (pdfX / pdfRect.width) * 100;
+            const yPercent = (pdfY / pdfRect.height) * 100;
+            
+            // Position the form at the click position
+            form.style.left = x + 'px';
+            form.style.top = y + 'px';
+            form.classList.add('active');
+            
+            // Store percentages for marker positioning
+            document.getElementById('commentPageNumber').value = pageNumber;
+            document.getElementById('commentX').value = xPercent;
+            document.getElementById('commentY').value = yPercent;
+            
+            // Focus the input
+            const input = form.querySelector('input[type="text"]');
+            if (input) {
+                input.focus();
+            }
+        }
+
+        function hideCommentForm() {
+            const form = document.getElementById('commentForm');
+            form.classList.remove('active');
+            document.getElementById('commentText').value = '';
+        }
+
+        function goToPage(pageNumber) {
+            console.log('Going to page:', pageNumber);
+            try {
+                const pdfViewer = document.getElementById('pdfViewer');
+                const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+                const activePdfViewer = pdfViewer || pdfViewerFallback;
+                
+                if (activePdfViewer) {
+                    // Try to use PDF.js if available
+                    if (activePdfViewer.contentWindow && activePdfViewer.contentWindow.PDFViewerApplication) {
+                        activePdfViewer.contentWindow.PDFViewerApplication.page = pageNumber;
+                    } else {
+                        // Fallback to basic PDF navigation
+                        const pdfDoc = activePdfViewer.contentDocument || activePdfViewer.contentWindow.document;
+                        if (pdfDoc) {
+                            const pages = pdfDoc.querySelectorAll('page');
+                            if (pages[pageNumber - 1]) {
+                                pages[pageNumber - 1].scrollIntoView();
+                            }
+                        }
+                    }
+                    currentPage = pageNumber;
+                    updateCurrentPage();
+                    // Wait for page change to complete before updating positions
+                    setTimeout(updateCommentPositions, 100);
+                }
+            } catch (error) {
+                console.error('Error navigating to page:', error);
+            }
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                goToPage(currentPage - 1);
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                goToPage(currentPage + 1);
+            }
+        }
+
+        function updateCurrentPage() {
+            console.log('Updating current page display:', currentPage);
+            const currentPageInput = document.getElementById('currentPage');
+            if (currentPageInput) {
+                currentPageInput.value = currentPage;
+            }
+            updateNavigationButtons();
+            showCommentsForPage(currentPage);
+        }
+
+        function updateNavigationButtons() {
+            console.log('Updating navigation buttons');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            if (prevPageBtn) prevPageBtn.disabled = currentPage <= 1;
+            if (nextPageBtn) nextPageBtn.disabled = currentPage >= totalPages;
+        }
+
+        function showCommentsForPage(pageNumber) {
+            const commentItems = document.querySelectorAll('.comment-item');
+            commentItems.forEach(item => {
+                const itemPage = parseInt(item.dataset.page);
+                item.style.display = itemPage === pageNumber ? 'block' : 'none';
+            });
+        }
+
+        // Add click outside handler to close comment form
+        document.addEventListener('click', function(e) {
+            const form = document.getElementById('commentForm');
+            const addCommentBtn = document.getElementById('addCommentBtn');
+            
+            if (form.classList.contains('active') && 
+                !form.contains(e.target) && 
+                !addCommentBtn.contains(e.target)) {
+                hideCommentForm();
+            }
+        });
+
+        // Update the updateCommentPositions function
+        function updateCommentPositions() {
+            const pdfViewer = document.getElementById('pdfViewer');
+            const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+            const activePdfViewer = pdfViewer || pdfViewerFallback;
+            const pdfRect = activePdfViewer.getBoundingClientRect();
+            const markers = document.querySelectorAll('.comment-marker');
+            
+            markers.forEach(marker => {
+                const xPercent = parseFloat(marker.dataset.x);
+                const yPercent = parseFloat(marker.dataset.y);
+                const page = parseInt(marker.dataset.page);
+                
+                // Only show markers for current page
+                if (page === currentPage) {
+                    marker.style.display = 'flex';
+                    // Calculate position relative to PDF viewer
+                    const x = (xPercent * pdfRect.width / 100) + pdfRect.left;
+                    const y = (yPercent * pdfRect.height / 100) + pdfRect.top;
+                    marker.style.left = x + 'px';
+                    marker.style.top = y + 'px';
+                } else {
+                    marker.style.display = 'none';
+                }
+            });
+        }
+
+        // Add event listener for PDF viewer resize
+        const resizeObserver = new ResizeObserver(entries => {
+            updateCommentPositions();
+        });
+        
+        // Observe the PDF viewer for size changes
+        const pdfViewer = document.getElementById('pdfViewer');
+        const pdfViewerFallback = document.getElementById('pdfViewerFallback');
+        const activePdfViewer = pdfViewer || pdfViewerFallback;
+        
+        if (activePdfViewer) {
+            resizeObserver.observe(activePdfViewer);
+        }
+
+        // Update positions when zoom changes
+        document.getElementById('zoomControl').addEventListener('change', function() {
+            // Wait for zoom to be applied
+            setTimeout(updateCommentPositions, 100);
+        });
+    </script>
+}

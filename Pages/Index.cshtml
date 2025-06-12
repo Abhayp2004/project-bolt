@@ -1,0 +1,335 @@
+@page
+@model PDFCommenter.Pages.IndexModel
+@{
+    ViewData["Title"] = "PDF Commenter";
+}
+
+<style>
+    body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #f3f4f6;
+        margin: 0;
+        padding: 0;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding-top: 2rem;
+    }
+
+    .header-section {
+        background-color: #0d47a1;
+        text-align: center;
+        padding: 1rem 0;
+        border-radius: 6px;
+        color: white;
+    }
+
+        .header-section h1 {
+            margin: 0;
+            font-size: 1.75rem;
+        }
+
+    .upload-section .card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        padding: 2rem;
+        background-color: #fff;
+    }
+
+    /* New style to center content in the upload box */
+    .upload-section .card-body {
+        text-align: center;
+    }
+
+    .upload-section label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* Ensure form inputs are not overly wide */
+    .upload-section .form-control {
+        max-width: 450px;
+        margin: 0 auto 1rem auto; /* Center the input fields */
+    }
+
+
+    .btn-primary {
+        background-color: #0d47a1;
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem; /* Increased padding */
+        font-weight: bold;
+        border-radius: 6px;
+    }
+
+    .table {
+        font-size: 0.95rem;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+
+        .table th {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            font-weight: bold;
+            padding: 0.75rem;
+            text-align: left; /* Keep table headers left-aligned */
+        }
+
+        .table td {
+            padding: 0.75rem;
+            text-align: left; /* Keep table data left-aligned */
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+    .alert {
+        border-radius: 6px;
+        padding: 1rem;
+        max-width: 450px; /* Set max-width */
+        margin: 1.5rem auto 0 auto; /* Center the alert */
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    .upload-card {
+        max-width: 420px;
+        margin: 2rem auto 0 auto;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+        padding: 0;
+        border: none;
+    }
+
+    .upload-card-header {
+        background: #1976d2;
+        color: #fff;
+        border-radius: 10px 10px 0 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-align: center;
+        padding: 0.75rem 1rem;
+        letter-spacing: 0.5px;
+    }
+
+    .upload-drag-area {
+        border: 2px dashed #1976d2;
+        border-radius: 8px;
+        padding: 1.25rem 1rem 1rem 1rem;
+        margin: 1.5rem 1rem 1rem 1rem;
+        background: #f8fafc;
+        text-align: center;
+    }
+
+        .upload-drag-area small {
+            color: #888;
+            font-size: 0.95rem;
+        }
+
+    .upload-file-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .upload-file-col {
+        flex: 1 1 0;
+        text-align: left;
+    }
+
+        .upload-file-col label {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .upload-file-col input[type="file"] {
+            width: 100%;
+            font-size: 0.95rem;
+        }
+
+    .upload-zoom-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 1.25rem 1rem 0.5rem 1rem;
+    }
+
+        .upload-zoom-row label {
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .upload-zoom-row .info-dot {
+            color: #1976d2;
+            font-size: 1.1rem;
+            margin-left: 0.2rem;
+        }
+
+    .upload-btn-row {
+        text-align: right;
+        margin: 1.5rem 1rem 1rem 1rem;
+    }
+
+        .upload-btn-row button {
+            width: 100%;
+            background: #1976d2;
+            color: #fff;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            padding: 0.6rem 0;
+            font-size: 1.1rem;
+            transition: background 0.2s;
+        }
+
+            .upload-btn-row button:hover {
+                background: #1256a0;
+            }
+</style>
+
+<div class="container">
+    <div class="header-section mb-4">
+        <h1>PDF Commenter</h1>
+    </div>
+
+    <!-- Section for Uploading PDF Files -->
+    <div class="upload-section">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">Upload New Document</h3>
+
+                <form method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group mb-3">
+                        <label for="PDFFile">Select PDF File</label>
+                        <input type="file" class="form-control" id="PDFFile" name="PDFFile" accept=".pdf">
+                        <small class="form-text text-muted">Maximum file size: 10MB.</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="ExcelFile">Select Excel File</label>
+                        <input type="file" class="form-control" id="ExcelFile" name="ExcelFile" accept=".xls,.xlsx">
+                        <small class="form-text text-muted">Maximum file size: 10MB. Allowed: .xls, .xlsx</small>
+                    </div>
+                    <div class="form-group mb-4">
+                        <label for="ZoomFactor">Zoom Factor</label>
+                        <input type="number" class="form-control" id="ZoomFactor" name="ZoomFactor" value="1.0" step="0.1" min="0.1" max="5.0">
+                        <small class="form-text text-muted">Adjust the zoom level for the PDF preview (0.1 to 5.0).</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+
+                <!-- Display Status Message from PageModel -->
+                @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                {
+                    var statusMessageClass = Model.StatusMessage.Contains("successfully") ? "alert-success" : "alert-danger";
+                    <div id="statusMessage" class="alert @statusMessageClass">
+                        @Model.StatusMessage
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Section for Listing Documents -->
+    <div class="list-section mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h3 class="card-title">Documents List</h3>
+            </div>
+            <div class="card-body" style="text-align:left;">
+                <!-- Override centering for the table -->
+                <div id="documentsTableContainer">
+                    @await Html.PartialAsync("_DocumentsTable", Model.Documents)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function viewExcelData(documentId) {
+            showExcelModal('Loading Excel data...', '');
+            fetch(`/api/Documents/excel/${documentId}/data`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load Excel data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayExcelData(data);
+                })
+                .catch(error => {
+                    showExcelModal('Error', `Failed to load Excel data: ${error.message}`);
+                });
+        }
+        function showExcelModal(title, content) {
+            let modal = document.getElementById('excelModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'excelModal';
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="excelContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            modal.querySelector('.modal-title').textContent = title;
+            document.getElementById('excelContent').innerHTML = content;
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+        function displayExcelData(data) {
+            let html = '<div class="table-responsive"><table class="table table-striped table-bordered">';
+            html += '<thead><tr>';
+            data.columns.forEach(column => {
+                html += `<th>${column}</th>`;
+            });
+            html += '</tr></thead>';
+            html += '<tbody>';
+            data.rows.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            showExcelModal('Excel Data', html);
+        }
+    </script>
+}

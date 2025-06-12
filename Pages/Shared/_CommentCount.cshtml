@@ -1,0 +1,7 @@
+@model int
+@inject PDFCommenter.Data.DatabaseService DatabaseService
+
+@{
+    var comments = await DatabaseService.GetCommentsForDocumentAsync(Model);
+    @comments.Count
+} 
